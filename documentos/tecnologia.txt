@@ -1,0 +1,2 @@
+A inteligência artificial (IA) é um ramo da ciência da computação que busca criar sistemas capazes de realizar tarefas que normalmente exigem inteligência humana. Exemplos incluem reconhecimento de fala, visão computacional e tradução automática.
+Redes neurais artificiais são modelos inspirados no cérebro humano que ajudam a IA a aprender com dados. Aprendizado de máquina e aprendizado profundo são subáreas da IA.

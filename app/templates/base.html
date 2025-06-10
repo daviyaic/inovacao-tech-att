@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Chat com IA - InovaTech{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sistema avançado de chat com inteligência artificial">
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/1198/1198096.png" type="image/png">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <main class="container">
+    <!-- Header moderno -->
+    <header class="chat-header">
+      <div class="header-content">
+        <div class="header-left">
+          <div class="header-info">
+            <h1>InovaTech AI</h1>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Formulário de chat -->
+    <section class="chat-form">
+      <form method="POST" class="message-form">
+        <div class="input-container">
+          <label for="mensagem" class="sr-only">Digite sua mensagem como {{ cargo }}</label>
+          <div class="input-wrapper">
+            <input 
+              type="text" 
+              id="mensagem" 
+              name="mensagem" 
+              placeholder="Digite sua mensagem..."
+              autocomplete="off"
+              maxlength="500"
+            >
+            <div class="character-count">
+              <span id="char-count">0</span>/500
+            </div>
+
+            <div class="input-actions">
+              <div>
+                <button type="submit" name="enviar" class="send-button" title="Enviar mensagem (Ctrl+Enter)">
+                  <span class="button-text">Enviar</span>
+                  <span class="send-icon">📤</span>
+                </button>
+              </div>
+              <div>
+                <button type="submit" name="encerrar" class="send-button" title="Encerrar conversa">
+                  <span class="end-icon">🔚</span>
+                  Encerrar Conversa
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- Janela do chat -->
+    <section class="chat-box">
+      <div class="chat-header-section">
+        <h2>
+          <span class="chat-icon">💬</span>
+          Conversa
+        </h2>
+        <div class="input-actions">
+          <div>
+            <button class="control-button" onclick="clearChat()" title="Limpar conversa">
+              <span>Excluir o chat🗑️</span>
+            </button>
+          </div>
+          <div>
+            <button class="control-button" onclick="exportChat()" title="Exportar conversa">
+              <span>Exportar o chat📥</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <pre id="chat-content">
+{% for linha in historico %}
+{{ linha|safe }}
+{% endfor %}
+        </pre>
+      </div>
+    </section>
+
+    <!-- Botões de ação -->
+    <section class="action-buttons">
+      <button onclick="abrirModalRAG()" class="action-btn rag-btn" title="Consultar Base de Conhecimento (Ctrl+R)">
+        <span class="btn-icon">🔍</span>
+        <span class="btn-text">Consultar Base (RAG)</span>
+      </button>
+      <button onclick="abrirModalJuiz()" class="action-btn judge-btn" title="Análise do Juiz (Ctrl+J)">
+        <span class="btn-icon">⚖️</span>
+        <span class="btn-text">Análise do Juiz</span>
+      </button>
+    </section>
+
+    <!-- Modal RAG -->
+    <div id="ragModal" class="modal" role="dialog" aria-labelledby="rag-title" aria-hidden="true">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="rag-title">
+            <span class="modal-icon">🔎</span>
+            Documentos Relacionados
+          </h3>
+          <button class="close" onclick="fecharModal('ragModal')" aria-label="Fechar modal">
+            <span>&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <pre id="ragContent" class="modal-content-text">Carregando...</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Juiz -->
+    <div id="juizModal" class="modal" role="dialog" aria-labelledby="judge-title" aria-hidden="true">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="judge-title">
+            <span class="modal-icon">⚖️</span>
+            Análise do Juiz
+          </h3>
+          <button class="close" onclick="fecharModal('juizModal')" aria-label="Fechar modal">
+            <span>&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div id="juizContent" class="modal-content-text">Carregando...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const messageInput = document.getElementById('mensagem');
+      const charCount = document.getElementById('char-count');
+
+      if (messageInput && charCount) {
+        messageInput.addEventListener('input', function() {
+          charCount.textContent = this.value.length;
+
+          if (this.value.length > 450) {
+            charCount.style.color = 'var(--danger-color)';
+          } else if (this.value.length > 400) {
+            charCount.style.color = 'var(--accent-color)';
+          } else {
+            charCount.style.color = 'var(--text-muted)';
+          }
+        });
+      }
+
+      const chatContent = document.getElementById('chat-content');
+      if (chatContent) {
+        chatContent.scrollTop = chatContent.scrollHeight;
+      }
+
+      let typingIndicator = null;
+      messageInput?.addEventListener('input', function() {
+        if (typingIndicator) clearTimeout(typingIndicator);
+        typingIndicator = setTimeout(() => {}, 1000);
+      });
+    });
+
+    function clearChat() {
+      if (confirm('Tem certeza que deseja limpar a conversa?')) {
+        const chatContent = document.getElementById('chat-content');
+        if (chatContent) {
+          chatContent.textContent = '';
+          showNotification('Conversa limpa com sucesso!', 'success');
+        }
+
+        fetch('/api/clear_chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            showNotification(data.message, 'success');
+          } else {
+            showNotification(data.message, 'error');
+          }
+        })
+        .catch(error => {
+          showNotification('Erro ao comunicar com o servidor: ' + error, 'error');
+        });
+      }
+    }
+
+    function exportChat() {
+      const chatContent = document.getElementById('chat-content');
+      if (chatContent && chatContent.textContent.trim()) {
+        const text = chatContent.textContent;
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chat-${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showNotification('Conversa exportada com sucesso!', 'success');
+      } else {
+        showNotification('Não há conversa para exportar', 'warning');
+      }
+    }
+
+    function abrirModalRAG() {
+      if (isLoading) return;
+
+      setLoadingState(true);
+      showModal('ragModal');
+      document.getElementById('ragModal').setAttribute('aria-hidden', 'false');
+
+      setTimeout(() => {
+        document.querySelector('#ragModal .close').focus();
+      }, 100);
+
+      const ragContent = document.getElementById('ragContent');
+      ragContent.innerHTML = '<div class="loading-spinner">🔄 Carregando documentos...</div>';
+
+      fetch('/api/rag')
+        .then(res => {
+          if (!res.ok) throw new Error('Erro na requisição');
+          return res.text();
+        })
+        .then(data => {
+          typeText(ragContent, data);
+        })
+        .catch(error => {
+          ragContent.innerHTML = `<div class="error-message">❌ Erro ao carregar: ${error.message}</div>`;
+        })
+        .finally(() => {
+          setLoadingState(false);
+        });
+    }
+
+    function abrirModalJuiz() {
+      if (isLoading) return;
+
+      setLoadingState(true);
+      showModal('juizModal');
+      document.getElementById('juizModal').setAttribute('aria-hidden', 'false');
+
+      setTimeout(() => {
+        document.querySelector('#juizModal .close').focus();
+      }, 100);
+
+      const juizContent = document.getElementById('juizContent');
+      juizContent.innerHTML = '<div class="loading-spinner">⚖️ Analisando...</div>';
+
+      fetch('/api/juiz')
+        .then(res => {
+          if (!res.ok) throw new Error('Erro na requisição');
+          return res.json();
+        })
+        .then(data => {
+          typeText(juizContent, data.resultado || 'Análise concluída');
+        })
+        .catch(error => {
+          juizContent.innerHTML = `<div class="error-message">❌ Erro ao analisar: ${error.message}</div>`;
+        })
+        .finally(() => {
+          setLoadingState(false);
+        });
+    }
+
+    function fecharModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) {
+        modal.setAttribute('aria-hidden', 'true');
+        modal.style.animation = 'fadeOut 0.2s ease';
+        setTimeout(() => {
+          modal.style.display = 'none';
+          modal.style.animation = '';
+          document.getElementById('mensagem')?.focus();
+        }, 200);
+      }
+    }
+  </script>
+</body>
+</html>
